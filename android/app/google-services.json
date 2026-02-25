@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "922986833753",
+    "project_id": "foodwaste-kh2026-yx-ca35f",
+    "storage_bucket": "foodwaste-kh2026-yx-ca35f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922986833753:android:cb0a8a886ee843ec344e48",
+        "android_client_info": {
+          "package_name": "com.example.kitahack2026"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4flLBT2vjTsrEzmq13JvMh3rJjFftOYg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
