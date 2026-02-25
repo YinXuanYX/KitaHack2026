@@ -14,6 +14,7 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String password,
     required String name,
+    required String phone,
     required String role, 
     // optional fields for vendors
     String? storeName,
@@ -31,6 +32,7 @@ class AuthService extends ChangeNotifier {
         'uid': userCredential.user!.uid,
         'email': email,
         'name': name,
+        'phone': phone,
         'role': role,
         'createdAt': FieldValue.serverTimestamp(),
       };

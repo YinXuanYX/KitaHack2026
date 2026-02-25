@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'consumer_edit_profile_screen.dart';
 
 class ConsumerProfileScreen extends StatefulWidget {
   const ConsumerProfileScreen({super.key});
@@ -10,10 +12,7 @@ class ConsumerProfileScreen extends StatefulWidget {
 }
 
 class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  
-  bool _isSaving = false;
+  Map<String, dynamic>? _consumerData;
   bool _isLoading = true;
 
   @override
@@ -29,8 +28,9 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        _nameController.text = data['name'] ?? '';
+        setState(() {
+          _consumerData = doc.data() as Map<String, dynamic>;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -41,47 +41,30 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
     }
   }
 
-  Future<void> _saveChanges() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _showProfileImage(BuildContext context, String imageUrl) {
+    if (imageUrl.isEmpty) return;
     
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'name': _nameController.text.trim(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _resetPassword() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.email == null) return;
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent! Check your inbox.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             ClipOval(
+               child: imageUrl.startsWith('data:image')
+                  ? Image.memory(base64Decode(imageUrl.split(',').last), width: 300, height: 300, fit: BoxFit.cover)
+                  : Image.network(imageUrl, width: 300, height: 300, fit: BoxFit.cover),
+             ),
+             const SizedBox(height: 16),
+             TextButton(
+               onPressed: () => Navigator.pop(context),
+               child: const Text('Close', style: TextStyle(color: Colors.white, fontSize: 18)),
+             ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -103,82 +86,102 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
           foodSaved = ordersSnap.data!.docs.length; // Assuming 1kg per order
         }
 
+        final profileImageUrl = _consumerData?['profileImageUrl'];
+        final name = _consumerData?['name'] ?? 'User';
+        final phone = _consumerData?['phone'] ?? 'No phone provided';
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 20),
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(Icons.person, size: 50, color: Theme.of(context).colorScheme.primary),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (profileImageUrl != null) {
+                      _showProfileImage(context, profileImageUrl);
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                        ? (profileImageUrl.startsWith('data:image') 
+                            ? MemoryImage(base64Decode(profileImageUrl.split(',').last)) 
+                            : NetworkImage(profileImageUrl) as ImageProvider)
+                        : null,
+                    child: profileImageUrl == null || profileImageUrl.isEmpty
+                        ? Icon(Icons.person, size: 50, color: Theme.of(context).colorScheme.primary)
+                        : null,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  user.email ?? '', 
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey)
-                ),
-                const SizedBox(height: 32),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                name,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user.email ?? '', 
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
 
-                // Statistics
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard(context, 'Food Saved', '$foodSaved kg', Icons.eco, Colors.green)),
-                  ],
-                ),
-                const SizedBox(height: 48),
-
-                // Edit Profile Settings
-                Text(
-                  'Profile Settings',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  validator: (value) => value == null || value.isEmpty ? 'Please enter your name' : null,
-                ),
-                const SizedBox(height: 24),
-                
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _saveChanges,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                  child: _isSaving 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes', style: TextStyle(fontSize: 16)),
-                ),
-                
-                const SizedBox(height: 32),
-                const Divider(),
-                const SizedBox(height: 32),
-                
-                OutlinedButton.icon(
-                  onPressed: _resetPassword,
-                  icon: const Icon(Icons.lock_reset),
-                  label: const Text('Send Password Reset Email'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Statistics
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard(context, 'Food Saved', '$foodSaved kg', Icons.eco, Colors.green)),
+                ],
+              ),
+              
+              const SizedBox(height: 32),
+              
+              Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.phone_outlined),
+                        title: const Text('Phone Number'),
+                        subtitle: Text(phone),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 80), // Padding for bottom navbar
-              ],
-            ),
+              ),
+              
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ConsumerEditProfileScreen(initialData: _consumerData ?? {}),
+                    ),
+                  );
+                  
+                  if (result == true) {
+                    setState(() => _isLoading = true);
+                    _loadConsumerData();
+                  }
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit Profile', style: TextStyle(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 80), // Padding for bottom navbar
+            ],
           ),
         );
       },
@@ -202,11 +205,5 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
   }
 }

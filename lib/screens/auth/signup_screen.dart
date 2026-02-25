@@ -14,6 +14,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _storeNameController = TextEditingController();
   final _authService = AuthService();
   
@@ -23,14 +24,23 @@ class _SignupScreenState extends State<SignupScreen> {
   String _selectedRole = 'consumer'; // 'consumer' or 'vendor'
 
   Future<void> _signUp() async {
-    if (_nameController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    if (_nameController.text.isEmpty || 
+        _emailController.text.isEmpty || 
+        _passwordController.text.isEmpty || 
+        _phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields')));
       return;
     }
 
-    if (_selectedRole == 'vendor' && _storeNameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vendors must provide a store name')));
-      return;
+    if (_selectedRole == 'vendor') {
+      if (_storeNameController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vendors must provide a store name')));
+        return;
+      }
+      if (_selectedLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vendors must pick a store location on the map')));
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -39,6 +49,7 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
         role: _selectedRole,
         storeName: _selectedRole == 'vendor' ? _storeNameController.text.trim() : null,
         lat: _selectedRole == 'vendor' && _selectedLocation != null ? _selectedLocation!.latitude : null,
@@ -95,6 +106,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 16),
               if (_selectedRole == 'vendor') ...[
@@ -179,6 +200,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     _storeNameController.dispose();
     super.dispose();
   }

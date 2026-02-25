@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../components/map_picker_screen.dart';
+import 'dart:convert';
+import 'vendor_edit_profile_screen.dart';
 
 class VendorProfileScreen extends StatefulWidget {
   const VendorProfileScreen({super.key});
@@ -12,13 +12,8 @@ class VendorProfileScreen extends StatefulWidget {
 }
 
 class _VendorProfileScreenState extends State<VendorProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _storeNameController = TextEditingController();
-  
-  LatLng? _selectedLocation;
-  
+  Map<String, dynamic>? _vendorData;
   bool _isLoading = true;
-  bool _isSaving = false;
 
   @override
   void initState() {
@@ -33,13 +28,9 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        _storeNameController.text = data['storeName'] ?? '';
-        final double? lat = data['lat'];
-        final double? lng = data['lng'];
-        if (lat != null && lng != null) {
-          _selectedLocation = LatLng(lat, lng);
-        }
+        setState(() {
+          _vendorData = doc.data() as Map<String, dynamic>;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -50,50 +41,30 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
     }
   }
 
-  Future<void> _saveChanges() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _showProfileImage(BuildContext context, String imageUrl) {
+    if (imageUrl.isEmpty) return;
     
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'storeName': _storeNameController.text.trim(),
-        if (_selectedLocation != null) 'lat': _selectedLocation!.latitude,
-        if (_selectedLocation != null) 'lng': _selectedLocation!.longitude,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully!')));
-        Navigator.pop(context); // Go back after saving
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _resetPassword() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.email == null) return;
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent! Check your inbox.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             ClipOval(
+               child: imageUrl.startsWith('data:image')
+                  ? Image.memory(base64Decode(imageUrl.split(',').last), width: 300, height: 300, fit: BoxFit.cover)
+                  : Image.network(imageUrl, width: 300, height: 300, fit: BoxFit.cover),
+             ),
+             const SizedBox(height: 16),
+             TextButton(
+               onPressed: () => Navigator.pop(context),
+               child: const Text('Close', style: TextStyle(color: Colors.white, fontSize: 18)),
+             ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -104,103 +75,102 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
 
+    final storeName = _vendorData?['storeName'] ?? 'Store Name';
+    final profileImageUrl = _vendorData?['profileImageUrl'];
+    final phone = _vendorData?['phone'] ?? 'No phone provided';
+
     return Scaffold(
       appBar: AppBar(title: const Text('Store Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.storefront, size: 80, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                user?.email ?? '',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              
-              TextFormField(
-                controller: _storeNameController,
-                decoration: InputDecoration(
-                  labelText: 'Store Name',
-                  prefixIcon: const Icon(Icons.badge_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter a store name' : null,
-              ),
-              const SizedBox(height: 16),
-              
-              // Map Picker Button
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final LatLng? picked = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MapPickerScreen(initialLocation: _selectedLocation),
-                    ),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _selectedLocation = picked;
-                    });
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (profileImageUrl != null) {
+                    _showProfileImage(context, profileImageUrl);
                   }
                 },
-                icon: const Icon(Icons.map_outlined),
-                label: Text(_selectedLocation == null 
-                   ? 'Pick Store Location on Map' 
-                   : 'Location Set: ${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)}'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: _selectedLocation == null ? Colors.red : Colors.green),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                      ? (profileImageUrl.startsWith('data:image') 
+                          ? MemoryImage(base64Decode(profileImageUrl.split(',').last)) 
+                          : NetworkImage(profileImageUrl) as ImageProvider)
+                      : null,
+                  child: profileImageUrl == null || profileImageUrl.isEmpty
+                      ? const Icon(Icons.storefront, size: 60, color: Colors.grey)
+                      : null,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Update your coordinates to make sure consumers can find your store exactly on the map.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isSaving ? null : _saveChanges,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              storeName,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              user?.email ?? '',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            const SizedBox(height: 32),
+            
+            Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.phone_outlined),
+                      title: const Text('Phone Number'),
+                      subtitle: Text(phone),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.map_outlined),
+                      title: const Text('Location'),
+                      subtitle: Text(_vendorData?['lat'] != null ? 'Coordinates Set' : 'No location set'),
+                    ),
+                  ],
                 ),
-                child: _isSaving 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save Changes', style: TextStyle(fontSize: 16)),
               ),
-              
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 24),
-              
-              OutlinedButton.icon(
-                onPressed: _resetPassword,
-                icon: const Icon(Icons.lock_reset),
-                label: const Text('Send Password Reset Email'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+            ),
+            
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VendorEditProfileScreen(initialData: _vendorData ?? {}),
+                  ),
+                );
+                
+                // Refresh if changes were made
+                if (result == true) {
+                  setState(() => _isLoading = true);
+                  _loadVendorData();
+                }
+              },
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Profile', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _storeNameController.dispose();
-    super.dispose();
   }
 }
