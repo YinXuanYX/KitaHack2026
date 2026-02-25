@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/vendor_service.dart';
+import 'vendor_order_detail_screen.dart';
 
 class VendorOrdersScreen extends StatefulWidget {
   const VendorOrdersScreen({super.key});
@@ -41,27 +41,143 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
     }
   }
 
-  void _showReceiptDialog(BuildContext context, String receiptUrl) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              receiptUrl.startsWith('data:image')
-                 ? Image.memory(base64Decode(receiptUrl.split(',').last), fit: BoxFit.contain)
-                 : Image.network(receiptUrl, fit: BoxFit.contain),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'pending': return Colors.orange;
+      case 'confirmed': return Colors.green;
+      case 'rejected': return Colors.red;
+      case 'claimed': return Colors.grey;
+      default: return Colors.black;
+    }
+  }
+
+  Widget _buildOrderList(String vendorId, List<String> statusFilters) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .where('vendorId', isEqualTo: vendorId)
+          .where('status', whereIn: statusFilters)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text(
+              'No orders found in this category.',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          );
+        }
+
+        var orders = List<QueryDocumentSnapshot>.from(snapshot.data!.docs);
+        // Sort descending by creation date
+        orders.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['createdAt'] as Timestamp?;
+          final bTime = bData['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            final orderData = orders[index].data() as Map<String, dynamic>;
+            final orderId = orders[index].id;
+            final inventoryId = orderData['inventoryId'];
+            final title = orderData['itemTitle'] ?? 'Unknown Item';
+            final price = (orderData['itemPrice'] as num?)?.toDouble() ?? 0.0;
+            final status = orderData['status'] as String?;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                   Navigator.push(
+                     context,
+                     MaterialPageRoute(
+                       builder: (context) => VendorOrderDetailScreen(
+                         orderId: orderId,
+                         orderData: orderData,
+                       ),
+                     ),
+                   );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Text(
+                            'RM ${price.toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                         'Status: ${(status ?? "UNKNOWN").toUpperCase()}',
+                         style: TextStyle(fontWeight: FontWeight.bold, color: _getStatusColor(status)),
+                      ),
+                      
+                      if (status == 'pending') ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => _updateOrderStatus(orderId, inventoryId, 'rejected'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade100,
+                                  foregroundColor: Colors.red.shade900,
+                                ),
+                                child: const Text('Reject'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => _updateOrderStatus(orderId, inventoryId, 'confirmed'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Approve'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -73,105 +189,26 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
       return const Center(child: Text('Not authenticated'));
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('orders')
-          .where('vendorId', isEqualTo: vendorId)
-          .where('status', isEqualTo: 'pending')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(
-            child: Text(
-              'No pending orders right now.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: 'Current Orders'),
+              Tab(text: 'Past Orders'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildOrderList(vendorId, ['pending', 'confirmed']),
+                _buildOrderList(vendorId, ['claimed', 'rejected']),
+              ],
             ),
-          );
-        }
-
-        final orders = snapshot.data!.docs;
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: orders.length,
-          itemBuilder: (context, index) {
-            final orderData = orders[index].data() as Map<String, dynamic>;
-            final orderId = orders[index].id;
-            final inventoryId = orderData['inventoryId'];
-            final title = orderData['itemTitle'] ?? 'Unknown Item';
-            final price = (orderData['itemPrice'] as num?)?.toDouble() ?? 0.0;
-            final receiptUrl = orderData['receiptUrl'] as String?;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Text(
-                          'RM ${price.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: receiptUrl != null ? () => _showReceiptDialog(context, receiptUrl) : null,
-                      icon: const Icon(Icons.receipt_long),
-                      label: const Text('View Payment Receipt'),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _updateOrderStatus(orderId, inventoryId, 'rejected'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade100,
-                              foregroundColor: Colors.red.shade900,
-                            ),
-                            child: const Text('Reject'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _updateOrderStatus(orderId, inventoryId, 'confirmed'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Approve'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }

@@ -96,6 +96,7 @@ class _ConsumerCheckoutScreenState extends State<ConsumerCheckoutScreen> {
         'inventoryId': inventoryId,
         'itemTitle': widget.inventoryItem['title'],
         'itemPrice': widget.inventoryItem['price'],
+        'itemImageUrl': widget.inventoryItem['imageUrl'],
         'status': 'pending', // Was 'reserved', changed to 'pending'
         'receiptUrl': receiptUrl,
         'createdAt': FieldValue.serverTimestamp(),

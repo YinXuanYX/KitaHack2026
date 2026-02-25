@@ -45,7 +45,15 @@ class _VendorInventoryScreenState extends State<VendorInventoryScreen> {
             return const Center(child: Text('No products listed yet.\nTap "Add Product" to start!', textAlign: TextAlign.center));
           }
 
-          final items = snapshot.data!.docs;
+          final items = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['status'] != 'claimed';
+          }).toList();
+
+          if (items.isEmpty) {
+             return const Center(child: Text('No active products listed.\nTap "Add Product" to start!', textAlign: TextAlign.center));
+          }
+
           return ListView.builder(
             padding: const EdgeInsets.only(bottom: 80, top: 16),
             itemCount: items.length,

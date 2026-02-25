@@ -60,15 +60,16 @@ class _VendorScanOrderScreenState extends State<VendorScanOrderScreen> {
          return;
       }
 
-      // Update to Claimed
-      await docRef.update({'status': 'claimed'});
+      // Update to Claimed and record the time
+      await docRef.update({
+        'status': 'claimed',
+        'claimedAt': FieldValue.serverTimestamp(),
+      });
       
-      // Also update inventory status
+      // Delete the inventory item so it vanishes from the storefront
       final inventoryId = data['inventoryId'] as String?;
       if (inventoryId != null) {
-         await FirebaseFirestore.instance.collection('inventory').doc(inventoryId).update({
-            'status': 'claimed',
-         });
+         await FirebaseFirestore.instance.collection('inventory').doc(inventoryId).delete();
       }
 
       if (!mounted) return;

@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart';
 
 class MapPickerScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -52,6 +53,28 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           _locationPermissionGranted = true;
         });
       }
+      _getCurrentLocation();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    if (widget.initialLocation != null) return;
+    
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium);
+      final point = LatLng(position.latitude, position.longitude);
+      
+      if (_controller.isCompleted) {
+        final controller = await _controller.future;
+        controller.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
+      } else {
+         // If map isn't created yet, wait
+         final controller = await _controller.future;
+         controller.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
+      }
+    } catch (e) {
+      debugPrint('Error getting current location: $e');
     }
   }
 
@@ -64,8 +87,24 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Future<List<Map<String, dynamic>>> _getSuggestions(String query) async {
     if (query.isEmpty) return [];
 
+    String locationParam = '';
+    try {
+      if (_controller.isCompleted) {
+        final controller = await _controller.future;
+        // get the visible region center or camera position
+        final bounds = await controller.getVisibleRegion();
+        final lat = (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
+        final lng = (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
+        // Bias heavily to a 50km radius around the map center
+        // The Place Autocomplete API explicitly uses 'location' and 'radius'
+        locationParam = '&location=$lat,$lng&radius=50000';
+      }
+    } catch (e) {
+      debugPrint('Could not get map position for search bias: $e');
+    }
+
     final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query&key=$_googleMapsApiKey');
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query$locationParam&key=$_googleMapsApiKey');
 
     try {
       final response = await http.get(url);

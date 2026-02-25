@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
 
-class ConsumerOrderDetailScreen extends StatelessWidget {
+class VendorOrderDetailScreen extends StatelessWidget {
   final Map<String, dynamic> orderData;
   final String orderId;
 
-  const ConsumerOrderDetailScreen({
+  const VendorOrderDetailScreen({
     super.key,
     required this.orderId,
     required this.orderData,
@@ -38,14 +37,14 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              receiptUrl.startsWith('data:image')
-                 ? Image.memory(base64Decode(receiptUrl.split(',').last), fit: BoxFit.contain)
-                 : Image.network(receiptUrl, fit: BoxFit.contain),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
+               receiptUrl.startsWith('data:image')
+                  ? Image.memory(base64Decode(receiptUrl.split(',').last), fit: BoxFit.contain)
+                  : Image.network(receiptUrl, fit: BoxFit.contain),
+               const SizedBox(height: 16),
+               TextButton(
+                 onPressed: () => Navigator.pop(context),
+                 child: const Text('Close'),
+               ),
             ],
           ),
         ),
@@ -121,7 +120,7 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(status).withValues(alpha: 0.1),
+                        color: _getStatusColor(status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: _getStatusColor(status)),
                       ),
@@ -179,68 +178,6 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
             ],
-
-            // QR Code Section (Only if confirmed)
-            if (status == 'confirmed') ...[
-              const Text('Pickup QR Code', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Card(
-                elevation: 2,
-                color: Colors.green.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.green.shade200, width: 2),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Present this QR Code to the vendor to claim your order.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
-                          ]
-                        ),
-                        child: QrImageView(
-                          data: orderId,
-                          version: QrVersions.auto,
-                          size: 200.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ] else if (status == 'pending') ...[
-               Card(
-                color: Colors.orange.shade50,
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.orange),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Your order is pending confirmation from the vendor. A QR code will appear here once approved.',
-                          style: TextStyle(color: Colors.orange),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 32),
           ],
         ),
       ),
