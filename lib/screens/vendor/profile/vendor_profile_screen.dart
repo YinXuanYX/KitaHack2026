@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'vendor_edit_profile_screen.dart';
+import '../../../services/rating_service.dart';
 
 class VendorProfileScreen extends StatefulWidget {
   const VendorProfileScreen({super.key});
@@ -14,11 +15,29 @@ class VendorProfileScreen extends StatefulWidget {
 class _VendorProfileScreenState extends State<VendorProfileScreen> {
   Map<String, dynamic>? _vendorData;
   bool _isLoading = true;
+  final RatingService _ratingService = RatingService();
+  double _averageRating = 0.0;
+  int _ratingCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadVendorData();
+    _loadRatingData();
+  }
+
+  Future<void> _loadRatingData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final result = await _ratingService.getVendorAverageRating(user.uid);
+      if (mounted) {
+        setState(() {
+          _averageRating = result['average'] as double;
+          _ratingCount = result['count'] as int;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadVendorData() async {
@@ -118,6 +137,35 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
               user?.email ?? '',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            // Average Rating Display
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ...List.generate(5, (index) {
+                  return Icon(
+                    index < _averageRating.round()
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: index < _averageRating.round()
+                        ? Colors.amber
+                        : Colors.grey[300],
+                    size: 24,
+                  );
+                }),
+                const SizedBox(width: 8),
+                Text(
+                  _ratingCount > 0
+                      ? '${_averageRating.toStringAsFixed(1)} ($_ratingCount reviews)'
+                      : 'No reviews yet',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
             

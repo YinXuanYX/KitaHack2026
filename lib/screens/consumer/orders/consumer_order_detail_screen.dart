@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../../services/rating_service.dart';
 
-class ConsumerOrderDetailScreen extends StatelessWidget {
+class ConsumerOrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> orderData;
   final String orderId;
 
@@ -13,6 +14,41 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
     required this.orderId,
     required this.orderData,
   });
+
+  @override
+  State<ConsumerOrderDetailScreen> createState() => _ConsumerOrderDetailScreenState();
+}
+
+class _ConsumerOrderDetailScreenState extends State<ConsumerOrderDetailScreen> {
+  final RatingService _ratingService = RatingService();
+  Map<String, dynamic>? _ratingData;
+  bool _isLoadingRating = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.orderData['status'] == 'claimed') {
+      _loadRating();
+    } else {
+      _isLoadingRating = false;
+    }
+  }
+
+  Future<void> _loadRating() async {
+    try {
+      final rating = await _ratingService.getRatingForOrder(widget.orderId);
+      if (mounted) {
+        setState(() {
+          _ratingData = rating;
+          _isLoadingRating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingRating = false);
+      }
+    }
+  }
 
   Color _getStatusColor(String? status) {
     switch (status) {
@@ -53,22 +89,288 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
     );
   }
 
+  void _showRatingDialog({Map<String, dynamic>? existingRating}) {
+    double selectedRating = existingRating != null
+        ? (existingRating['rating'] as num).toDouble()
+        : 0.0;
+    final commentController = TextEditingController(
+      text: existingRating?['comment'] ?? '',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(
+                  existingRating != null ? Icons.edit : Icons.star_rounded,
+                  color: Colors.amber,
+                ),
+                const SizedBox(width: 8),
+                Text(existingRating != null ? 'Edit Rating' : 'Rate Order'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'How was your experience?',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+                  // Star selector
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final starValue = index + 1.0;
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            selectedRating = starValue;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: AnimatedScale(
+                            scale: selectedRating >= starValue ? 1.2 : 1.0,
+                            duration: const Duration(milliseconds: 150),
+                            child: Icon(
+                              selectedRating >= starValue
+                                  ? Icons.star_rounded
+                                  : Icons.star_border_rounded,
+                              color: selectedRating >= starValue
+                                  ? Colors.amber
+                                  : Colors.grey[400],
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  if (selectedRating > 0) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _getRatingLabel(selectedRating),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber[800],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Add a comment (optional)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: selectedRating > 0
+                    ? () async {
+                        Navigator.pop(context);
+                        await _submitOrUpdateRating(
+                          rating: selectedRating,
+                          comment: commentController.text.trim(),
+                          existingRatingId: existingRating?['id'],
+                        );
+                      }
+                    : null,
+                child: Text(existingRating != null ? 'Update' : 'Submit'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  String _getRatingLabel(double rating) {
+    if (rating >= 5) return 'Excellent!';
+    if (rating >= 4) return 'Great!';
+    if (rating >= 3) return 'Good';
+    if (rating >= 2) return 'Fair';
+    return 'Poor';
+  }
+
+  Future<void> _submitOrUpdateRating({
+    required double rating,
+    required String comment,
+    String? existingRatingId,
+  }) async {
+    try {
+      if (existingRatingId != null) {
+        await _ratingService.updateRating(
+          ratingId: existingRatingId,
+          rating: rating,
+          comment: comment,
+        );
+      } else {
+        await _ratingService.submitRating(
+          orderId: widget.orderId,
+          vendorId: widget.orderData['vendorId'] ?? '',
+          rating: rating,
+          comment: comment,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(existingRatingId != null
+                ? 'Rating updated successfully!'
+                : 'Rating submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadRating();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit rating: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildRatingSection() {
+    if (_isLoadingRating) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_ratingData != null) {
+      // Show existing rating
+      final rating = (_ratingData!['rating'] as num).toDouble();
+      final comment = _ratingData!['comment'] as String? ?? '';
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Your Rating',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return Icon(
+                        index < rating.round()
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: index < rating.round()
+                            ? Colors.amber
+                            : Colors.grey[300],
+                        size: 32,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${rating.toStringAsFixed(1)} / 5.0',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.amber[800],
+                    ),
+                  ),
+                  if (comment.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Text(
+                      '"$comment"',
+                      style: const TextStyle(
+                        fontStyle: FontStyle.italic,
+                        fontSize: 15,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => _showRatingDialog(existingRating: _ratingData),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit Rating'),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Show Rate Order button
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => _showRatingDialog(),
+        icon: const Icon(Icons.star_rounded),
+        label: const Text('Rate Order', style: TextStyle(fontSize: 16)),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: Colors.amber[700],
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 3,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = orderData['itemTitle'] ?? 'Unknown Item';
-    final price = (orderData['itemPrice'] as num?)?.toDouble() ?? 0.0;
-    final status = orderData['status'] as String?;
-    final receiptUrl = orderData['receiptUrl'] as String?;
-    final imageUrl = orderData['itemImageUrl'] as String?;
+    final title = widget.orderData['itemTitle'] ?? 'Unknown Item';
+    final price = (widget.orderData['itemPrice'] as num?)?.toDouble() ?? 0.0;
+    final status = widget.orderData['status'] as String?;
+    final receiptUrl = widget.orderData['receiptUrl'] as String?;
+    final imageUrl = widget.orderData['itemImageUrl'] as String?;
     
     DateTime? orderDate;
-    if (orderData['createdAt'] != null) {
-      orderDate = (orderData['createdAt'] as Timestamp).toDate();
+    if (widget.orderData['createdAt'] != null) {
+      orderDate = (widget.orderData['createdAt'] as Timestamp).toDate();
     }
 
     DateTime? claimedDate;
-    if (orderData['claimedAt'] != null) {
-      claimedDate = (orderData['claimedAt'] as Timestamp).toDate();
+    if (widget.orderData['claimedAt'] != null) {
+      claimedDate = (widget.orderData['claimedAt'] as Timestamp).toDate();
     }
 
     return Scaffold(
@@ -150,7 +452,7 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildInfoRow('Order ID', orderId),
+                    _buildInfoRow('Order ID', widget.orderId),
                     const Divider(),
                     _buildInfoRow('Placed On', orderDate != null ? DateFormat('MMM dd, yyyy - hh:mm a').format(orderDate) : 'Unknown'),
                     if (status == 'claimed' && claimedDate != null) ...[
@@ -211,7 +513,7 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
                           ]
                         ),
                         child: QrImageView(
-                          data: orderId,
+                          data: widget.orderId,
                           version: QrVersions.auto,
                           size: 200.0,
                         ),
@@ -240,6 +542,13 @@ class ConsumerOrderDetailScreen extends StatelessWidget {
                 ),
               ),
             ],
+
+            // Rating Section (Only for claimed orders)
+            if (status == 'claimed') ...[
+              const SizedBox(height: 24),
+              _buildRatingSection(),
+            ],
+
             const SizedBox(height: 32),
           ],
         ),

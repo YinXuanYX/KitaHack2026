@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'checkout/consumer_checkout_screen.dart';
+import '../../services/rating_service.dart';
 
 import 'consumer_item_detail_screen.dart';
 import 'consumer_store_screen.dart';
@@ -18,6 +19,7 @@ class ConsumerHomeScreen extends StatefulWidget {
 
 class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
   final Completer<GoogleMapController> _controller = Completer();
+  final RatingService _ratingService = RatingService();
   
   // Default to somewhere central in KL for the MVP
   static const CameraPosition _initialCameraPosition = CameraPosition(
@@ -27,6 +29,9 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
 
   Set<Marker> _markers = {};
   bool _locationPermissionGranted = false;
+
+  // Store vendor data for bottom sheet
+  final Map<String, Map<String, dynamic>> _vendorDataMap = {};
 
   @override
   void initState() {
@@ -57,29 +62,18 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
       final data = doc.data() as Map<String, dynamic>;
       final double? lat = data['lat'];
       final double? lng = data['lng'];
-      final String? storeName = data['storeName'] ?? data['name'];
+      final String storeName = data['storeName'] ?? data['name'] ?? 'Store';
       
       if (lat != null && lng != null) {
+        // Cache vendor data for bottom sheet
+        _vendorDataMap[doc.id] = data;
+
         newMarkers.add(
           Marker(
             markerId: MarkerId(doc.id),
             position: LatLng(lat, lng),
-            infoWindow: InfoWindow(
-              title: storeName,
-              snippet: 'Tap to view all items available here',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ConsumerStoreScreen(
-                      vendorId: doc.id,
-                      storeName: storeName ?? 'Store',
-                    ),
-                  ),
-                );
-              },
-            ),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            onTap: () => _showStoreOverview(doc.id, storeName, data),
           ),
         );
       }
@@ -88,6 +82,150 @@ class _ConsumerHomeScreenState extends State<ConsumerHomeScreen> {
     setState(() {
       _markers = newMarkers;
     });
+  }
+
+  void _showStoreOverview(String vendorId, String storeName, Map<String, dynamic> vendorData) {
+    final profileImageUrl = vendorData['profileImageUrl'] as String?;
+    final phone = vendorData['phone'] as String? ?? 'No phone number';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Store Image
+            CircleAvatar(
+              radius: 45,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                  ? (profileImageUrl.startsWith('data:image')
+                      ? MemoryImage(base64Decode(profileImageUrl.split(',').last))
+                      : NetworkImage(profileImageUrl) as ImageProvider)
+                  : null,
+              child: profileImageUrl == null || profileImageUrl.isEmpty
+                  ? const Icon(Icons.storefront, size: 40, color: Colors.grey)
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            // Store Name
+            Text(
+              storeName,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            // Phone
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  phone,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Average Rating (loaded async)
+            FutureBuilder<Map<String, dynamic>>(
+              future: _ratingService.getVendorAverageRating(vendorId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+
+                final average = (snapshot.data?['average'] as double?) ?? 0.0;
+                final count = (snapshot.data?['count'] as int?) ?? 0;
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ...List.generate(5, (index) {
+                      return Icon(
+                        index < average.round()
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: index < average.round()
+                            ? Colors.amber
+                            : Colors.grey[300],
+                        size: 22,
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    Text(
+                      count > 0
+                          ? '${average.toStringAsFixed(1)} ($count)'
+                          : 'No reviews',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            // View Store Button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(context); // Close bottom sheet
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ConsumerStoreScreen(
+                        vendorId: vendorId,
+                        storeName: storeName,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.storefront),
+                label: const Text('View Store', style: TextStyle(fontSize: 16)),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override

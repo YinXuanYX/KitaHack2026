@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../services/vendor_service.dart';
+import '../../../services/rating_service.dart';
 
 class VendorDashboardScreen extends StatefulWidget {
   const VendorDashboardScreen({super.key});
@@ -14,7 +15,30 @@ class VendorDashboardScreen extends StatefulWidget {
 
 class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   final VendorService _vendorService = VendorService();
+  final RatingService _ratingService = RatingService();
   bool _isUploadingQr = false;
+  double _averageRating = 0.0;
+  int _ratingCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRatingData();
+  }
+
+  Future<void> _loadRatingData() async {
+    final vendorId = _vendorService.currentUserId;
+    if (vendorId == null) return;
+    try {
+      final result = await _ratingService.getVendorAverageRating(vendorId);
+      if (mounted) {
+        setState(() {
+          _averageRating = result['average'] as double;
+          _ratingCount = result['count'] as int;
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<void> _uploadQrCode() async {
     final ImagePicker picker = ImagePicker();
@@ -82,6 +106,18 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     Row(
                       children: [
                         Expanded(child: _buildStatCard(context, 'Food Saved', '$foodSavedKg kg', Icons.eco, color: Colors.green)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Average Rating',
+                            _ratingCount > 0
+                                ? '${_averageRating.toStringAsFixed(1)} ⭐'
+                                : 'No ratings',
+                            Icons.star_rounded,
+                            color: Colors.amber,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 32),
