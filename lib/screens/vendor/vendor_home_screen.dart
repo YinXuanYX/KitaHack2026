@@ -6,6 +6,7 @@ import 'inventory/vendor_inventory_screen.dart';
 import 'orders/vendor_orders_screen.dart';
 import 'scanner/vendor_scanner_screen.dart';
 import 'profile/vendor_profile_screen.dart';
+import '../chatbot_screen.dart';
 
 class VendorHomeScreen extends StatefulWidget {
   const VendorHomeScreen({super.key});
@@ -85,6 +86,19 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        backgroundColor: Colors.white,
+        child: Icon(
+          Icons.chat_bubble_outline,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }

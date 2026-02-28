@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import 'consumer_home_screen.dart'; // Map Page
 import 'orders/consumer_orders_screen.dart';
 import 'profile/consumer_profile_screen.dart';
+import '../chatbot_screen.dart';
 
 class ConsumerMainScreen extends StatefulWidget {
   final int initialIndex;
@@ -167,6 +168,19 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        backgroundColor: Colors.white,
+        child: Icon(
+          Icons.chat_bubble_outline,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
