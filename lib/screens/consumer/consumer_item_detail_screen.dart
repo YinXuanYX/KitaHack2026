@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'checkout/consumer_checkout_screen.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../chat/chat_screen.dart';
 
 class ConsumerItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> inventoryItem;
@@ -314,6 +315,38 @@ class _ConsumerItemDetailScreenState extends State<ConsumerItemDetailScreen> {
           child: Row(
             children: [
               Expanded(
+                flex: 1,
+                child: OutlinedButton(
+                  onPressed: () {
+                    final vendorId = item['vendorId'];
+                    if (vendorId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            receiverId: vendorId,
+                            receiverName: storeName,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cannot find seller info')),
+                      );
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.chat),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.push(

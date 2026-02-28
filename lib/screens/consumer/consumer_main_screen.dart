@@ -8,6 +8,7 @@ import 'consumer_home_screen.dart'; // Map Page
 import 'orders/consumer_orders_screen.dart';
 import 'profile/consumer_profile_screen.dart';
 import '../chatbot_screen.dart';
+import '../chat/chat_list_screen.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ConsumerMainScreen extends StatefulWidget {
@@ -117,12 +118,14 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
   static const List<Widget> _widgetOptions = <Widget>[
     ConsumerHomeScreen(),
     ConsumerOrdersScreen(),
+    ChatListScreen(),
     ConsumerProfileScreen(),
   ];
 
   static const List<String> _titles = [
     'Discover Deals',
     'My Orders',
+    'Messages',
     'Profile',
   ];
 
@@ -162,12 +165,17 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Messages',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
       floatingActionButton: FloatingActionButton(

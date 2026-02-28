@@ -22,18 +22,7 @@ class _VendorInventoryScreenState extends State<VendorInventoryScreen> {
       return const Center(child: Text('Not authenticated'));
     }
 
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddProductScreen()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('inventory')
             .where('vendorId', isEqualTo: vendorId)
@@ -142,8 +131,7 @@ class _VendorInventoryScreenState extends State<VendorInventoryScreen> {
             },
           );
         },
-      ),
-    );
+      );
   }
 }
 

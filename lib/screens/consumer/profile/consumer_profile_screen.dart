@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'consumer_edit_profile_screen.dart';
 import '../../../services/theme_provider.dart';
+import '../../report/report_screen.dart';
 
 class ConsumerProfileScreen extends StatefulWidget {
   const ConsumerProfileScreen({super.key});
@@ -164,6 +165,18 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
                         value: themeProvider.isDarkMode,
                         onChanged: (value) {
                           themeProvider.toggleTheme(value);
+                        },
+                      ),
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(Icons.help_outline),
+                        title: const Text('Feedback & Support'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ReportScreen()),
+                          );
                         },
                       ),
                     ],

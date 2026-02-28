@@ -8,6 +8,7 @@ import 'orders/vendor_orders_screen.dart';
 import 'scanner/vendor_scanner_screen.dart';
 import 'profile/vendor_profile_screen.dart';
 import '../chatbot_screen.dart';
+import '../chat/chat_list_screen.dart';
 
 class VendorHomeScreen extends StatefulWidget {
   const VendorHomeScreen({super.key});
@@ -33,6 +34,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
     VendorDashboardScreen(),
     VendorInventoryScreen(),
     VendorOrdersScreen(),
+    ChatListScreen(),
     VendorScanOrderScreen(),
   ];
 
@@ -79,6 +81,10 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Messages',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.qr_code_scanner),
             label: 'Scan Order',
           ),
@@ -88,20 +94,43 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
         selectedItemColor: Theme.of(context).colorScheme.primary,
         onTap: _onItemTapped,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
-          );
-        },
-        backgroundColor: Colors.white,
-        child: Icon(
-          Icons.chat_bubble_outline,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 32.0),
+            child: FloatingActionButton(
+              heroTag: 'chatbot_fab',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+                );
+              },
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.chat_bubble_outline,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          if (_selectedIndex == 1) // inventory tab
+            FloatingActionButton.extended(
+              heroTag: 'add_product_fab',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddProductScreen()),
+                );
+              },
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Product'),
+            ),
+        ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
