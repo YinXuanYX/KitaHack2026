@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../../services/vendor_service.dart';
 import 'vendor_edit_product_screen.dart';
 
@@ -128,9 +129,82 @@ class _AddProductScreenState extends State<AddProductScreen> {
   DateTime? _expiryDate;
   List<File> _imageFiles = [];
   bool _isLoading = false;
+  bool _isSnappingWithAI = false;
 
   final List<String> _availableTags = ['Halal', 'Non-Halal', 'Vegetarian', 'Vegan', 'Spicy', 'Sweet'];
   final List<String> _selectedTags = [];
+
+  Future<void> _snapWithAI() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.camera, imageQuality: 50, maxWidth: 800);
+    
+    if (image == null) return;
+
+    setState(() => _isSnappingWithAI = true);
+
+    try {
+      final bytes = await image.readAsBytes();
+      
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: 'AIzaSyBD24BGbR8W66gsiFEXvnMNyYqrziEcsL4',
+      );
+
+      final prompt = '''
+You are an AI assistant for a surplus food business. The vendor just uploaded a picture of an item to sell. 
+Look at the item and return a JSON object with strictly these keys:
+- "title": (string) A catchy title.
+- "description": (string) Short catchy description, mentioning it's surplus or needs to be sold soon.
+- "price": (double) Suggested markdown price in RM. Make it cheap.
+- "allergens": (string) Comma separated allergens if visible/likely, else empty string.
+Do not wrap in markdown tags like ```json. Return ONLY valid JSON.
+''';
+
+      final response = await model.generateContent([
+        Content.multi([
+          TextPart(prompt),
+          DataPart('image/jpeg', bytes),
+        ])
+      ]);
+
+      if (response.text != null && response.text!.isNotEmpty) {
+        String rspText = response.text!.trim();
+        if (rspText.startsWith('```json')) {
+           rspText = rspText.substring(7);
+        }
+        if (rspText.startsWith('```')) {
+           rspText = rspText.substring(3);
+        }
+        if (rspText.endsWith('```')) {
+           rspText = rspText.substring(0, rspText.length - 3);
+        }
+        
+        final data = jsonDecode(rspText.trim());
+        setState(() {
+          _titleController.text = data['title']?.toString() ?? '';
+          _descriptionController.text = data['description']?.toString() ?? '';
+          if (data['price'] != null) {
+            _priceController.text = data['price'].toString();
+          }
+          _allergensController.text = data['allergens']?.toString() ?? '';
+          _imageFiles.add(File(image.path));
+        });
+        
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Auto-filled fields successfully!')),
+           );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI Vision failed: \$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSnappingWithAI = false);
+    }
+  }
 
   Future<void> _selectExpiryDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -247,8 +321,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: null, // Disabled placeholder
-                        icon: const Icon(Icons.camera_alt),
+                        onPressed: _isSnappingWithAI ? null : _snapWithAI,
+                        icon: _isSnappingWithAI 
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.camera_alt),
                         label: const Text('Snap with AI'),
                       ),
                     ],
