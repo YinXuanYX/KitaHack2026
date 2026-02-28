@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../services/vendor_service.dart';
 import 'vendor_edit_product_screen.dart';
 
@@ -177,7 +178,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       
       final model = GenerativeModel(
         model: 'gemini-2.5-flash',
-        apiKey: 'AIzaSyBD24BGbR8W66gsiFEXvnMNyYqrziEcsL4',
+        apiKey: dotenv.env['GEMINI_API_KEY']!,
       );
 
       final prompt = '''

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -22,7 +23,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     super.initState();
     _model = GenerativeModel(
       model: 'gemini-2.5-flash',
-      apiKey: 'AIzaSyBD24BGbR8W66gsiFEXvnMNyYqrziEcsL4',
+      apiKey: dotenv.env['GEMINI_API_KEY']!,
     );
     _chat = _model.startChat();
   }
