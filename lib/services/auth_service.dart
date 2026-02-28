@@ -74,6 +74,17 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Error sending reset password email: ${e.code} - ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
     notifyListeners();

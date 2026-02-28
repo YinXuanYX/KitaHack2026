@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../../services/vendor_service.dart';
 import '../../../services/rating_service.dart';
 
@@ -19,6 +20,8 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
   bool _isUploadingQr = false;
   double _averageRating = 0.0;
   int _ratingCount = 0;
+  bool _isGeneratingInsights = false;
+  String? _aiInsights;
 
   @override
   void initState() {
@@ -62,6 +65,56 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       } finally {
         if (mounted) setState(() => _isUploadingQr = false);
       }
+    }
+  }
+
+  Future<void> _generateWasteInsights() async {
+    final vendorId = _vendorService.currentUserId;
+    if (vendorId == null) return;
+    
+    setState(() => _isGeneratingInsights = true);
+
+    try {
+      final ordersSnap = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('vendorId', isEqualTo: vendorId)
+          .get();
+
+      final inventorySnap = await FirebaseFirestore.instance
+          .collection('inventory')
+          .where('vendorId', isEqualTo: vendorId)
+          .get();
+
+      final ordersData = ordersSnap.docs.map((d) => d.data()).toList();
+      final inventoryData = inventorySnap.docs.map((d) => d.data()).toList();
+
+      final combinedData = {
+        'totalOrders': ordersData.length,
+        'currentInventory': inventoryData,
+        'pastOrders': ordersData,
+      };
+
+      final jsonStr = jsonEncode(combinedData);
+
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: 'AIzaSyBD24BGbR8W66gsiFEXvnMNyYqrziEcsL4',
+      );
+
+      final prompt = '''
+Analyze this surplus food sales data and give the vendor 2 very short, actionable tips to reduce waste and boost sales.
+Data: \$jsonStr
+''';
+
+      final response = await model.generateContent([Content.text(prompt)]);
+
+      setState(() {
+        _aiInsights = response.text;
+      });
+    } catch (e) {
+       setState(() => _aiInsights = 'Failed to load insights: \$e');
+    } finally {
+      if (mounted) setState(() => _isGeneratingInsights = false);
     }
   }
 
@@ -120,6 +173,41 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    
+                    // AI Insights Section
+                    Card(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.insights, color: Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 8),
+                                Text('AI Waste Insights', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (_aiInsights != null)
+                              Text(_aiInsights!)
+                            else if (_isGeneratingInsights)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              ElevatedButton.icon(
+                                onPressed: _generateWasteInsights,
+                                icon: const Icon(Icons.auto_awesome),
+                                label: const Text('Generate Smart Insights'),
+                              )
+                          ],
+                        ),
+                      ),
+                    ),
+                    
                     const SizedBox(height: 32),
                     Text(
                       'Payment Setup',

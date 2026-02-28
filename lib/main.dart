@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'services/theme_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/consumer/consumer_main_screen.dart';
 import 'screens/vendor/vendor_home_screen.dart';
@@ -18,6 +19,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const KitaHackApp(),
     ),
@@ -29,10 +31,23 @@ class KitaHackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    
     return MaterialApp(
       title: 'GlobalGrub',
+      themeMode: themeProvider.themeMode,
       theme: ThemeData(
         colorSchemeSeed: Colors.green, // Emerald/Forest green base
+        brightness: Brightness.light,
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+        ),
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.green, // Emerald/Forest green base
+        brightness: Brightness.dark,
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
           centerTitle: true,

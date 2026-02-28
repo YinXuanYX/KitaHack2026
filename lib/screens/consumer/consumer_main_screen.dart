@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/auth_service.dart';
 import 'consumer_home_screen.dart'; // Map Page
 import 'orders/consumer_orders_screen.dart';
 import 'profile/consumer_profile_screen.dart';
+import '../chatbot_screen.dart';
+import '../chat/chat_list_screen.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ConsumerMainScreen extends StatefulWidget {
   final int initialIndex;
@@ -115,12 +118,14 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
   static const List<Widget> _widgetOptions = <Widget>[
     ConsumerHomeScreen(),
     ConsumerOrdersScreen(),
+    ChatListScreen(),
     ConsumerProfileScreen(),
   ];
 
   static const List<String> _titles = [
     'Discover Deals',
     'My Orders',
+    'Messages',
     'Profile',
   ];
 
@@ -144,7 +149,7 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => AuthService().signOut(),
+            onPressed: () => context.read<AuthService>().signOut(),
           ),
         ],
       ),
@@ -160,14 +165,33 @@ class _ConsumerMainScreenState extends State<ConsumerMainScreen> {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Messages',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        backgroundColor: Colors.white,
+        child: Icon(
+          Icons.chat_bubble_outline,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 }

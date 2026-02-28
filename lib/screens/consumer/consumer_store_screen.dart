@@ -1,9 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/rating_service.dart';
 import 'checkout/consumer_checkout_screen.dart';
 import 'consumer_item_detail_screen.dart';
+import '../chat/chat_screen.dart';
+import '../report/report_screen.dart';
 
 class ConsumerStoreScreen extends StatefulWidget {
   final String vendorId;
@@ -85,7 +87,7 @@ class _ConsumerStoreScreenState extends State<ConsumerStoreScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Column(
@@ -147,6 +149,25 @@ class _ConsumerStoreScreenState extends State<ConsumerStoreScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      receiverId: widget.vendorId,
+                      receiverName: actualStoreName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat),
+              label: const Text('Message Store'),
+            ),
           ),
         ],
       ),
@@ -229,7 +250,7 @@ class _ConsumerStoreScreenState extends State<ConsumerStoreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -237,9 +258,26 @@ class _ConsumerStoreScreenState extends State<ConsumerStoreScreen> {
             floating: true,
             pinned: true,
             elevation: 0,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             surfaceTintColor: Colors.transparent,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.report_gmailerrorred),
+                tooltip: 'Report Seller',
+                color: Colors.red,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReportScreen(
+                        reportedUserId: widget.vendorId,
+                        reportedUserName: widget.storeName,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           SliverToBoxAdapter(
             child: _buildStoreHeader(),
