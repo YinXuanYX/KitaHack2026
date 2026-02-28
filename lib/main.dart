@@ -9,9 +9,11 @@ import 'services/theme_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/consumer/consumer_main_screen.dart';
 import 'screens/vendor/vendor_home_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

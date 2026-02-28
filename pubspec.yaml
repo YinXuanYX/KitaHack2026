@@ -53,6 +53,7 @@ dependencies:
   intl: ^0.20.2
   geolocator: ^14.0.2
   google_generative_ai: ^0.4.7
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ flutter:
 
   assets:
     - assets/
+    - .env
 
   # To add assets to your application, add an assets section, like this:
   # assets:

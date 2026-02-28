@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'checkout/consumer_checkout_screen.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../chat/chat_screen.dart';
 
 class ConsumerItemDetailScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _ConsumerItemDetailScreenState extends State<ConsumerItemDetailScreen> {
     try {
       final model = GenerativeModel(
         model: 'gemini-2.5-flash',
-        apiKey: 'AIzaSyBD24BGbR8W66gsiFEXvnMNyYqrziEcsL4',
+        apiKey: dotenv.env['GEMINI_API_KEY']!,
       );
 
       final prompt = 'I have this surplus food item: \$itemTitle. Description: \$description. Give me a creative, quick recipe I can make using this ingredient, in a short response.';
