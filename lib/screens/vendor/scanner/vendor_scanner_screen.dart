@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 
 class VendorScanOrderScreen extends StatefulWidget {
   const VendorScanOrderScreen({super.key});
@@ -12,6 +13,42 @@ class VendorScanOrderScreen extends StatefulWidget {
 class _VendorScanOrderScreenState extends State<VendorScanOrderScreen> {
   final MobileScannerController _scannerController = MobileScannerController();
   bool _isProcessing = false;
+
+  Future<void> _pickImageAndScan() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (image == null) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final BarcodeCapture? capture = await _scannerController.analyzeImage(image.path);
+      if (capture != null && capture.barcodes.isNotEmpty && capture.barcodes.first.rawValue != null) {
+        await _processOrder(capture.barcodes.first.rawValue!);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No QR code found in the selected image.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error analyzing image: $e', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+         setState(() {
+           _isProcessing = false;
+         });
+      }
+    }
+  }
 
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
@@ -91,7 +128,16 @@ class _VendorScanOrderScreenState extends State<VendorScanOrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Pickup QR')),
+      appBar: AppBar(
+        title: const Text('Scan Pickup QR'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.image),
+            tooltip: 'Upload QR Image',
+            onPressed: _isProcessing ? null : _pickImageAndScan,
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           MobileScanner(

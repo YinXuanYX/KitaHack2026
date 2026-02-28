@@ -34,7 +34,7 @@ class KitaHackApp extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     
     return MaterialApp(
-      title: 'GlobalGrub',
+      title: 'Wastave',
       themeMode: themeProvider.themeMode,
       theme: ThemeData(
         colorSchemeSeed: Colors.green, // Emerald/Forest green base
@@ -64,7 +64,7 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
+    final authService = context.read<AuthService>();
 
     return StreamBuilder<User?>(
       stream: authService.authStateChanges,

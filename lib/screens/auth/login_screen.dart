@@ -116,14 +116,17 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                Icons.eco,
-                size: 80,
-                color: Theme.of(context).colorScheme.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/logo.jpg',
+                  height: 140,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 32),
               Text(
-                'Welcome Back',
+                'Let\'s save it all!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,

@@ -48,7 +48,6 @@ class AuthService extends ChangeNotifier {
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
 
-      notifyListeners();
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) {
@@ -64,7 +63,6 @@ class AuthService extends ChangeNotifier {
         email: email,
         password: password,
       );
-      notifyListeners();
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) {
@@ -87,6 +85,5 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _auth.signOut();
-    notifyListeners();
   }
 }
