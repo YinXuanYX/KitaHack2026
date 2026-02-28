@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'consumer_edit_profile_screen.dart';
+import '../../../services/theme_provider.dart';
 
 class ConsumerProfileScreen extends StatefulWidget {
   const ConsumerProfileScreen({super.key});
@@ -78,6 +80,8 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
        return const Center(child: Text('Not logged in.'));
     }
 
+    final themeProvider = context.watch<ThemeProvider>();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('orders').where('consumerId', isEqualTo: user.uid).where('status', isEqualTo: 'claimed').snapshots(),
       builder: (context, ordersSnap) {
@@ -152,6 +156,15 @@ class _ConsumerProfileScreenState extends State<ConsumerProfileScreen> {
                         leading: const Icon(Icons.phone_outlined),
                         title: const Text('Phone Number'),
                         subtitle: Text(phone),
+                      ),
+                      const Divider(),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.dark_mode_outlined),
+                        title: const Text('Dark Mode'),
+                        value: themeProvider.isDarkMode,
+                        onChanged: (value) {
+                          themeProvider.toggleTheme(value);
+                        },
                       ),
                     ],
                   ),

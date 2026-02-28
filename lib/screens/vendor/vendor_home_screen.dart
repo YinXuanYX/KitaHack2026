@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import 'dashboard/vendor_dashboard_screen.dart';
 import 'inventory/vendor_inventory_screen.dart';
@@ -58,7 +59,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => AuthService().signOut(),
+            onPressed: () => context.read<AuthService>().signOut(),
           ),
         ],
       ),
@@ -100,6 +101,7 @@ class _VendorHomeScreenState extends State<VendorHomeScreen> {
           color: Theme.of(context).colorScheme.primary,
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 }

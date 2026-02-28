@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'vendor_edit_profile_screen.dart';
 import '../../../services/rating_service.dart';
+import '../../../services/theme_provider.dart';
 
 class VendorProfileScreen extends StatefulWidget {
   const VendorProfileScreen({super.key});
@@ -93,6 +95,7 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
+    final themeProvider = context.watch<ThemeProvider>();
 
     final storeName = _vendorData?['storeName'] ?? 'Store Name';
     final profileImageUrl = _vendorData?['profileImageUrl'];
@@ -187,6 +190,15 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
                       leading: const Icon(Icons.map_outlined),
                       title: const Text('Location'),
                       subtitle: Text(_vendorData?['lat'] != null ? 'Coordinates Set' : 'No location set'),
+                    ),
+                    const Divider(),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.dark_mode_outlined),
+                      title: const Text('Dark Mode'),
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.toggleTheme(value);
+                      },
                     ),
                   ],
                 ),
